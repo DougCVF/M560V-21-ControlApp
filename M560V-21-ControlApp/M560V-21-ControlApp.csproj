@@ -184,6 +184,8 @@
     <Resource Include="Assets\Rack2.png" />
     <Resource Include="Assets\Rack3.png" />
     <Resource Include="Assets\Rack4.png" />
+    <Resource Include="Assets\Op10Zoffset.png" />
+    <Resource Include="Assets\Op20Zoffset.png" />
     <Content Include="InitDatabase.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
