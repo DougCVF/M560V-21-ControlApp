@@ -62,6 +62,7 @@
     <Reference Include="System.Data.SQLite.Linq, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Data.SQLite.Linq.1.0.119.0\lib\net45\System.Data.SQLite.Linq.dll</HintPath>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -183,6 +184,8 @@
     <Resource Include="Assets\Rack2.png" />
     <Resource Include="Assets\Rack3.png" />
     <Resource Include="Assets\Rack4.png" />
+    <Resource Include="Assets\Op10Zoffset.png" />
+    <Resource Include="Assets\Op20Zoffset.png" />
     <Content Include="InitDatabase.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

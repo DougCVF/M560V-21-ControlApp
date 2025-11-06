@@ -1,123 +1,111 @@
 ﻿using System;
+using System.Globalization;
 using System.Windows;
+using M560V_21_ControlApp.Data; // adjust namespace if your Part class lives elsewhere
 using M560V_21_ControlApp.Models;
-using M560V_21_ControlApp.Data;
 
 namespace M560V_21_ControlApp.Controls
 {
     public partial class PartEditWindow : Window
     {
-        private readonly Part _part;
-        private readonly bool _isEdit;
+        public Part CurrentPart { get; private set; }
 
-        public PartEditWindow(Part part = null)
+        public PartEditWindow()
         {
             InitializeComponent();
+            CurrentPart = new Part();
+        }
 
-            _isEdit = (part != null);
-            _part = part ?? new Part();
-
-            if (_isEdit)
+        public PartEditWindow(Part existing) : this()
+        {
+            if (existing == null) return;
+            CurrentPart = new Part
             {
-                // Header/title can stay the same; just populate fields
-                txtPartNumber.Text = _part.PartNumber;
-                txtDescription.Text = _part.Description;
+                Id = existing.Id
+            };
+            // preload UI from existing
+            txtPartNumber.Text = existing.PartNumber;
+            txtDescription.Text = existing.Description;
+            txtStockWidth.Text = existing.StockWidth.ToString(CultureInfo.InvariantCulture);
+            txtStockDepth.Text = existing.StockDepth.ToString(CultureInfo.InvariantCulture);
+            txtStockHeight.Text = existing.StockHeight.ToString(CultureInfo.InvariantCulture);
 
-                txtWidth.Text = _part.StockWidth.ToString();
-                txtDepth.Text = _part.StockDepth.ToString();
-                txtHeight.Text = _part.StockHeight.ToString();
+            txtOp10PickXOffset.Text = existing.Op10PickXOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp10PickYOffset.Text = existing.Op10PickYOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp10PickZOffset.Text = existing.Op10PickZOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp10CycleTime.Text = existing.Op10CycleTime.ToString(CultureInfo.InvariantCulture);
 
-                txtOp10X.Text = _part.Op10PickXOffset.ToString();
-                txtOp10Y.Text = _part.Op10PickYOffset.ToString();
-                txtOp10Z.Text = _part.Op10PickZOffset.ToString();
+            txtOp20PickXOffset.Text = existing.Op20PickXOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp20PickYOffset.Text = existing.Op20PickYOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp20PickZOffset.Text = existing.Op20PickZOffset.ToString(CultureInfo.InvariantCulture);
 
-                txtOp20X.Text = _part.Op20PickXOffset.ToString();
-                txtOp20Y.Text = _part.Op20PickYOffset.ToString();
-                txtOp20Z.Text = _part.Op20PickZOffset.ToString();
+            txtOp20FinXOffset.Text = existing.Op20FinXOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp20FinYOffset.Text = existing.Op20FinYOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp20FinZOffset.Text = existing.Op20FinZOffset.ToString(CultureInfo.InvariantCulture);
+            txtOp20CycleTime.Text = existing.Op20CycleTime.ToString(CultureInfo.InvariantCulture);
 
-                txtFinX.Text = _part.Op20FinXOffset.ToString();
-                txtFinY.Text = _part.Op20FinYOffset.ToString();
-                txtFinZ.Text = _part.Op20FinZOffset.ToString();
+            txtOp10VisePSI.Text = existing.Op10VisePSI.ToString(CultureInfo.InvariantCulture);
+            txtOp20VisePSI.Text = existing.Op20VisePSI.ToString(CultureInfo.InvariantCulture);
 
-                txtOp10PSI.Text = _part.Op10VisePSI.ToString();
-                txtOp20PSI.Text = _part.Op20VisePSI.ToString();
+            txtOp10ProgramName.Text = existing.Op10ProgramName;
+            txtOp20ProgramName.Text = existing.Op20ProgramName;
+        }
 
-                txtOp10Prog.Text = _part.Op10ProgramName;
-                txtOp20Prog.Text = _part.Op20ProgramName;
+        private static double ParseOrZero(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return 0.0;
+            double d;
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out d))
+                return d;
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out d))
+                return d;
+            return 0.0;
+        }
 
-                txtOp10Time.Text = _part.Op10CycleTime.ToString();
-                txtOp20Time.Text = _part.Op20CycleTime.ToString();
+        private bool CollectFromUIIntoPart()
+        {
+            if (string.IsNullOrWhiteSpace(txtPartNumber.Text))
+            {
+                MessageBox.Show(this, "Part Number is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                txtPartNumber.Focus();
+                return false;
             }
-        }
 
-        private static double ParseDoubleOrZero(string s)
-        {
-            double v; return double.TryParse(s, out v) ? v : 0.0;
-        }
+            CurrentPart.PartNumber = txtPartNumber.Text.Trim();
+            CurrentPart.Description = txtDescription.Text.Trim();
 
-        private static int ParseIntOrDefault(string s, int def)
-        {
-            int v; return int.TryParse(s, out v) ? v : def;
+            CurrentPart.StockWidth = ParseOrZero(txtStockWidth.Text);
+            CurrentPart.StockDepth = ParseOrZero(txtStockDepth.Text);
+            CurrentPart.StockHeight = ParseOrZero(txtStockHeight.Text);
+
+            CurrentPart.Op10PickXOffset = ParseOrZero(txtOp10PickXOffset.Text);
+            CurrentPart.Op10PickYOffset = ParseOrZero(txtOp10PickYOffset.Text);
+            CurrentPart.Op10PickZOffset = ParseOrZero(txtOp10PickZOffset.Text);
+            CurrentPart.Op10CycleTime = ParseOrZero(txtOp10CycleTime.Text);
+
+            CurrentPart.Op20PickXOffset = ParseOrZero(txtOp20PickXOffset.Text);
+            CurrentPart.Op20PickYOffset = ParseOrZero(txtOp20PickYOffset.Text);
+            CurrentPart.Op20PickZOffset = ParseOrZero(txtOp20PickZOffset.Text);
+
+            CurrentPart.Op20FinXOffset = ParseOrZero(txtOp20FinXOffset.Text);
+            CurrentPart.Op20FinYOffset = ParseOrZero(txtOp20FinYOffset.Text);
+            CurrentPart.Op20FinZOffset = ParseOrZero(txtOp20FinZOffset.Text);
+            CurrentPart.Op20CycleTime = ParseOrZero(txtOp20CycleTime.Text);
+
+            CurrentPart.Op10VisePSI = ParseOrZero(txtOp10VisePSI.Text);
+            CurrentPart.Op20VisePSI = ParseOrZero(txtOp20VisePSI.Text);
+
+            CurrentPart.Op10ProgramName = (txtOp10ProgramName.Text ?? "").Trim();
+            CurrentPart.Op20ProgramName = (txtOp20ProgramName.Text ?? "").Trim();
+
+            return true;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                // Basic validation
-                var pn = (txtPartNumber.Text ?? string.Empty).Trim();
-                if (pn.Length == 0)
-                {
-                    MessageBox.Show("Part Number is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    txtPartNumber.Focus();
-                    return;
-                }
-
-                _part.PartNumber = pn;
-                _part.Description = (txtDescription.Text ?? string.Empty).Trim();
-
-                // Stock sizes
-                _part.StockWidth = ParseDoubleOrZero(txtWidth.Text);
-                _part.StockDepth = ParseDoubleOrZero(txtDepth.Text);
-                _part.StockHeight = ParseDoubleOrZero(txtHeight.Text);
-
-                // Op10 Offsets
-                _part.Op10PickXOffset = ParseDoubleOrZero(txtOp10X.Text);
-                _part.Op10PickYOffset = ParseDoubleOrZero(txtOp10Y.Text);
-                _part.Op10PickZOffset = ParseDoubleOrZero(txtOp10Z.Text);
-
-                // Op20 Offsets
-                _part.Op20PickXOffset = ParseDoubleOrZero(txtOp20X.Text);
-                _part.Op20PickYOffset = ParseDoubleOrZero(txtOp20Y.Text);
-                _part.Op20PickZOffset = ParseDoubleOrZero(txtOp20Z.Text);
-
-                // Finish offsets
-                _part.Op20FinXOffset = ParseDoubleOrZero(txtFinX.Text);
-                _part.Op20FinYOffset = ParseDoubleOrZero(txtFinY.Text);
-                _part.Op20FinZOffset = ParseDoubleOrZero(txtFinZ.Text);
-
-                // Vise PSI / Programs / Times
-                _part.Op10VisePSI = ParseIntOrDefault(txtOp10PSI.Text, 120);
-                _part.Op20VisePSI = ParseIntOrDefault(txtOp20PSI.Text, 120);
-
-                _part.Op10ProgramName = (txtOp10Prog.Text ?? string.Empty).Trim();
-                _part.Op20ProgramName = (txtOp20Prog.Text ?? string.Empty).Trim();
-
-                _part.Op10CycleTime = ParseDoubleOrZero(txtOp10Time.Text);
-                _part.Op20CycleTime = ParseDoubleOrZero(txtOp20Time.Text);
-
-                if (_isEdit)
-                    Repository.UpdatePart(_part);
-                else
-                    Repository.InsertPart(_part);
-
-                DialogResult = true;
-                Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error saving part:\n" + ex.Message, "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            if (!CollectFromUIIntoPart()) return;
+            DialogResult = true;
+            Close();
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

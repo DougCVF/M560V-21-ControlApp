@@ -1,85 +1,81 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using M560V_21_ControlApp.Data;
+using M560V_21_ControlApp.Data; // Part + Repository namespaces
+using M560V_21_ControlApp.Controls;
 using M560V_21_ControlApp.Models;
 
-namespace M560V_21_ControlApp.Controls
+namespace M560V_21_ControlApp
 {
     public partial class PartManagementControl : UserControl
     {
+        private readonly Repository _repo = new Repository();
+
         public PartManagementControl()
         {
             InitializeComponent();
-            LoadParts();
+            RefreshGrid();
         }
 
-        private void LoadParts()
+        private void RefreshGrid()
         {
-            try
+            List<Part> parts = _repo.GetAllParts();
+            PartsGrid.ItemsSource = parts;
+        }
+
+        private Part GetSelectedPart()
+        {
+            return PartsGrid?.SelectedItem as Part;
+        }
+
+        // ADD
+        private void BtnAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new PartEditWindow { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() == true)
             {
-                List<Part> parts = Repository.GetAllParts();
-                dgParts.ItemsSource = parts;
+                _repo.InsertPart(win.CurrentPart);
+                RefreshGrid();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to load parts: " + ex.Message,
-                    "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
 
-        private void Add_Click(object sender, RoutedEventArgs e)
+        // EDIT
+        private void BtnEdit_Click(object sender, RoutedEventArgs e)
         {
-            var window = new PartEditWindow(null);
-            if (window.ShowDialog() == true)
-                LoadParts();
-        }
-
-        private void Edit_Click(object sender, RoutedEventArgs e)
-        {
-            var selectedPart = dgParts.SelectedItem as Part;
-            if (selectedPart == null)
+            var selected = GetSelectedPart();
+            if (selected == null)
             {
-                MessageBox.Show("Select a part to edit.", "Info",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Select a part to edit.", "Edit", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var window = new PartEditWindow(selectedPart);
-            if (window.ShowDialog() == true)
-                LoadParts();
+            var win = new PartEditWindow(selected) { Owner = Window.GetWindow(this) };
+            if (win.ShowDialog() == true)
+            {
+                // keep original Id for update
+                win.CurrentPart.Id = selected.Id;
+                _repo.UpdatePart(win.CurrentPart);
+                RefreshGrid();
+            }
         }
 
-        private void Delete_Click(object sender, RoutedEventArgs e)
+        // DELETE
+        private void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
-            var selectedPart = dgParts.SelectedItem as Part;
-            if (selectedPart == null)
+            var selected = GetSelectedPart();
+            if (selected == null)
             {
-                MessageBox.Show("Select a part to delete.", "Info",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Select a part to delete.", "Delete", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            if (MessageBox.Show("Delete selected part?",
-                "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            var confirm = MessageBox.Show($"Delete part \"{selected.PartNumber}\"?", "Confirm Delete",
+                                          MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirm == MessageBoxResult.Yes)
             {
-                try
-                {
-                    Repository.DeletePart(selectedPart.Id);
-                    LoadParts();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Delete failed: " + ex.Message,
-                        "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                _repo.DeletePart(selected.Id);
+                RefreshGrid();
             }
-        }
-
-        private void Refresh_Click(object sender, RoutedEventArgs e)
-        {
-            LoadParts();
         }
     }
 }

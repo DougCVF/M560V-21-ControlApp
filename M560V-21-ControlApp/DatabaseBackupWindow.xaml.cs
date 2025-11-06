@@ -1,90 +1,174 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Windows;
+using System.Windows.Forms;
 using M560V_21_ControlApp.Data;
+using MessageBox = System.Windows.MessageBox;
+
 
 namespace M560V_21_ControlApp.Windows
 {
     public partial class DatabaseBackupWindow : Window
     {
+        private readonly string backupConfigPath;
+
         public DatabaseBackupWindow()
         {
             InitializeComponent();
+
+            backupConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BackupPath.txt");
+            LoadBackupPath();
             LoadBackupList();
         }
 
+        // ───────────────────────────────────────────────────────────────
+        // BACKUP FOLDER HANDLING
+        // ───────────────────────────────────────────────────────────────
+
+        private void LoadBackupPath()
+        {
+            try
+            {
+                if (File.Exists(backupConfigPath))
+                {
+                    string path = File.ReadAllText(backupConfigPath).Trim();
+                    if (Directory.Exists(path))
+                        lblBackupPath.Text = path;
+                    else
+                        lblBackupPath.Text = GetDefaultBackupPath();
+                }
+                else
+                {
+                    lblBackupPath.Text = GetDefaultBackupPath();
+                }
+
+                Directory.CreateDirectory(lblBackupPath.Text);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Error loading backup path: " + ex.Message);
+                lblBackupPath.Text = GetDefaultBackupPath();
+            }
+        }
+
+        private void SaveBackupPath(string path)
+        {
+            try
+            {
+                File.WriteAllText(backupConfigPath, path);
+                lblBackupPath.Text = path;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Failed to save backup path.\n" + ex.Message,
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string GetDefaultBackupPath()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DatabaseBackups");
+        }
+
+        private void btnSelectFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (var dlg = new FolderBrowserDialog())
+                {
+                    dlg.Description = "Select a folder to store database backups";
+                    dlg.SelectedPath = lblBackupPath.Text;
+                    if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                    {
+                        SaveBackupPath(dlg.SelectedPath);
+                        LoadBackupList();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Folder selection failed: " + ex.Message,
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // BACKUP / RESTORE ACTIONS
+        // ───────────────────────────────────────────────────────────────
+
         private void LoadBackupList()
         {
-            lstBackups.Items.Clear();
-            var backups = DatabaseBackupManager.GetBackupFiles()
-                .OrderByDescending(f => f)
-                .ToArray();
-
-            if (backups.Length == 0)
+            try
             {
-                lstBackups.Items.Add("No backups found.");
-                lstBackups.IsEnabled = false;
-                return;
+                lstBackups.Items.Clear();
+
+                string[] backups = DatabaseBackupManager.GetBackupFiles(lblBackupPath.Text);
+                foreach (var b in backups)
+                    lstBackups.Items.Add(Path.GetFileName(b));
             }
-
-            lstBackups.IsEnabled = true;
-            foreach (var file in backups)
-                lstBackups.Items.Add(System.IO.Path.GetFileName(file));
-        }
-
-        private void btnCreateBackup_Click(object sender, RoutedEventArgs e)
-        {
-            string path = DatabaseBackupManager.BackupDatabase();
-            if (path != null)
+            catch (Exception ex)
             {
-                MessageBox.Show("Backup created successfully:\n" + path,
-                    "Backup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadBackupList();
-            }
-            else
-            {
-                MessageBox.Show("Backup failed.", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show("Error loading backups: " + ex.Message,
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void btnRestoreBackup_Click(object sender, RoutedEventArgs e)
+        private void btnCreate_Click(object sender, RoutedEventArgs e)
         {
-            if (lstBackups.SelectedItem == null)
+            try
             {
-                MessageBox.Show("Please select a backup to restore.", "No Selection",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                string result = DatabaseBackupManager.BackupDatabase(lblBackupPath.Text);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    System.Windows.MessageBox.Show("Backup created:\n" + result,
+                        "Backup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoadBackupList();
+
+                    // 🔹 Ensure MainWindow updates "Last Backup" after successful backup
+                    if (this.Owner is M560V_21_ControlApp.MainWindow main)
+                    {
+                        // Wait just a bit to ensure file timestamp is written
+                        System.Threading.Tasks.Task.Delay(500).ContinueWith(_ =>
+                        {
+                            main.Dispatcher.Invoke(() =>
+                            {
+                                main.UpdateLastBackupLabel();
+                            });
+                        });
+                    }
+                }
             }
-
-            string selected = lstBackups.SelectedItem.ToString();
-            if (selected == "No backups found.") return;
-
-            string basePath = AppDomain.CurrentDomain.BaseDirectory;
-            string fullPath = System.IO.Path.Combine(basePath, "Backups", selected);
-
-            if (!File.Exists(fullPath))
+            catch (Exception ex)
             {
-                MessageBox.Show("Selected backup file not found.", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                System.Windows.MessageBox.Show("Backup failed: " + ex.Message,
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
 
-            var confirm = MessageBox.Show(
-                "This will overwrite the current database.\nContinue?",
-                "Confirm Restore",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
 
-            if (confirm == MessageBoxResult.Yes)
+
+        private void btnRestore_Click(object sender, RoutedEventArgs e)
+        {
+            try
             {
-                if (DatabaseBackupManager.RestoreDatabase(fullPath))
-                    MessageBox.Show("Database restored successfully.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                else
-                    MessageBox.Show("Restore failed.", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                if (lstBackups.SelectedItem == null)
+                {
+                    System.Windows.MessageBox.Show("Please select a backup file to restore.");
+                    return;
+                }
+
+                string selectedFile = Path.Combine(lblBackupPath.Text, lstBackups.SelectedItem.ToString());
+                if (DatabaseBackupManager.RestoreDatabase(selectedFile))
+                {
+                    System.Windows.MessageBox.Show("Database restored successfully.",
+                        "Restore Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show("Restore failed: " + ex.Message,
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -95,7 +179,7 @@ namespace M560V_21_ControlApp.Windows
 
         private void btnClose_Click(object sender, RoutedEventArgs e)
         {
-            this.Close();
+            Close();
         }
     }
 }

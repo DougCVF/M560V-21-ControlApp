@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Controls;
 using M560V_21_ControlApp.Data;
 using M560V_21_ControlApp.Windows;
+using System.Linq;
+
 
 
 namespace M560V_21_ControlApp
@@ -122,7 +124,7 @@ namespace M560V_21_ControlApp
             }
         }
 
-        private void UpdateLastBackupLabel()
+        public void UpdateLastBackupLabel()
         {
             try
             {
@@ -133,7 +135,12 @@ namespace M560V_21_ControlApp
                     return;
                 }
 
-                var backupFiles = Directory.GetFiles(_backupDirectory, "*.bak");
+                // Look for both legacy .bak and new .db backup files
+                var backupFiles = Directory.GetFiles(_backupDirectory, "*.*")
+                                           .Where(f => f.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) ||
+                                                       f.EndsWith(".db", StringComparison.OrdinalIgnoreCase))
+                                           .ToArray();
+
                 if (backupFiles.Length == 0)
                 {
                     txtLastBackup.Text = "None";
@@ -171,5 +178,6 @@ namespace M560V_21_ControlApp
                 txtLastBackup.Foreground = System.Windows.Media.Brushes.Red;
             }
         }
+
     }
 }
