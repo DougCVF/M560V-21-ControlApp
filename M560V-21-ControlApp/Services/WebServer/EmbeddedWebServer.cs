@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Configuration;
+using System.Collections.Generic;
 
 namespace M560V_21_ControlApp.Services.WebServer
 {
@@ -208,43 +209,96 @@ namespace M560V_21_ControlApp.Services.WebServer
             }
         }
 
-        private void HandleApiParts(HttpListenerContext context)
+        using System.Collections.Generic; // make sure this is at the top with other usings
+
+private void HandleApiParts(HttpListenerContext context)
+    {
+        try
         {
+            List<M560V_21_ControlApp.Models.Part> parts;
+
             try
             {
-                // Placeholder data for now
-                var parts = new[]
-                {
-                    new { Id = 1, Name = "Stock Holder", Material = "Aluminum",  Quantity = 12 },
-                    new { Id = 2, Name = "Clamp Plate",   Material = "Steel",     Quantity = 5  },
-                    new { Id = 3, Name = "Spacer Block",  Material = "Delrin",    Quantity = 20 }
-                };
-
-                var sb = new StringBuilder();
-                sb.Append("[");
-                for (int i = 0; i < parts.Length; i++)
-                {
-                    var p = parts[i];
-                    sb.Append("{")
-                      .AppendFormat("\"Id\":{0},\"Name\":\"{1}\",\"Material\":\"{2}\",\"Quantity\":{3}",
-                                    p.Id, p.Name, p.Material, p.Quantity)
-                      .Append("}");
-                    if (i < parts.Length - 1) sb.Append(",");
-                }
-                sb.Append("]");
-
-                byte[] buffer = Encoding.UTF8.GetBytes(sb.ToString());
-                context.Response.ContentType = "application/json";
-                context.Response.ContentLength64 = buffer.Length;
-                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+                parts = M560V_21_ControlApp.Data.Repository.GetAllParts();
             }
-            catch (Exception ex)
+            catch (Exception exRepo)
             {
-                Console.WriteLine($"[WebServer] /api/parts error: {ex.Message}");
+                Console.WriteLine($"[WebServer] Database access error: {exRepo.Message}");
                 context.Response.StatusCode = 500;
-                WriteString(context, "{ \"error\": \"Internal Server Error\" }");
+                WriteString(context, "{ \"error\": \"Database access failed\" }");
+                return;
             }
+
+            var sb = new StringBuilder();
+            sb.Append("[");
+
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var p = parts[i];
+
+                // Build JSON manually to stay compatible with older C# versions
+                sb.Append("{")
+                  .AppendFormat("\"Id\":{0}", p.Id)
+                  .AppendFormat(",\"PartNumber\":\"{0}\"", EscapeJson(p.PartNumber))
+                  .AppendFormat(",\"Description\":\"{0}\"", EscapeJson(p.Description))
+                  .AppendFormat(",\"StockWidth\":{0}", p.StockWidth)
+                  .AppendFormat(",\"StockDepth\":{0}", p.StockDepth)
+                  .AppendFormat(",\"StockHeight\":{0}", p.StockHeight)
+
+                  // Op10 Pick Offsets
+                  .AppendFormat(",\"Op10PickXOffset\":{0}", p.Op10PickXOffset)
+                  .AppendFormat(",\"Op10PickYOffset\":{0}", p.Op10PickYOffset)
+                  .AppendFormat(",\"Op10PickZOffset\":{0}", p.Op10PickZOffset)
+
+                  // Op20 Pick Offsets
+                  .AppendFormat(",\"Op20PickXOffset\":{0}", p.Op20PickXOffset)
+                  .AppendFormat(",\"Op20PickYOffset\":{0}", p.Op20PickYOffset)
+                  .AppendFormat(",\"Op20PickZOffset\":{0}", p.Op20PickZOffset)
+
+                  // Op20 Fin Offsets (optional)
+                  .AppendFormat(",\"Op20FinXOffset\":{0}", p.Op20FinXOffset)
+                  .AppendFormat(",\"Op20FinYOffset\":{0}", p.Op20FinYOffset)
+                  .AppendFormat(",\"Op20FinZOffset\":{0}", p.Op20FinZOffset)
+
+                  // Vise PSI values
+                  .AppendFormat(",\"Op10VisePSI\":{0}", p.Op10VisePSI)
+                  .AppendFormat(",\"Op20VisePSI\":{0}", p.Op20VisePSI)
+
+                  // Program names
+                  .AppendFormat(",\"Op10ProgramName\":\"{0}\"", EscapeJson(p.Op10ProgramName))
+                  .AppendFormat(",\"Op20ProgramName\":\"{0}\"", EscapeJson(p.Op20ProgramName))
+
+                  // Cycle times
+                  .AppendFormat(",\"Op10CycleTime\":{0}", p.Op10CycleTime)
+                  .AppendFormat(",\"Op20CycleTime\":{0}", p.Op20CycleTime)
+                  .Append("}");
+
+                if (i < parts.Count - 1)
+                    sb.Append(",");
+            }
+
+            sb.Append("]");
+
+            byte[] buffer = Encoding.UTF8.GetBytes(sb.ToString());
+            context.Response.ContentType = "application/json";
+            context.Response.ContentLength64 = buffer.Length;
+            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WebServer] /api/parts error: {ex.Message}");
+            context.Response.StatusCode = 500;
+            WriteString(context, "{ \"error\": \"Internal Server Error\" }");
+        }
+    }
+
+
+    private string EscapeJson(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
+        }
+
 
         private void WriteString(HttpListenerContext ctx, string text)
         {

@@ -1,10 +1,219 @@
 ﻿<!DOCTYPE html>
 <html>
 <head>
-    <title>M560V-21 Web Test</title>
+    <meta charset="utf-8">
+    <title>Part Management</title>
+    <style>
+        body {
+            background-color: #222;
+            color: #eee;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .left-panel {
+            flex: 1;
+            border-right: 2px solid #333;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #111;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+        }
+
+        tr:hover {
+            background-color: #444;
+            cursor: pointer;
+        }
+
+        tr.selected {
+            background-color: #555;
+        }
+
+        .btn-row {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        button {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            margin-left: 6px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+            button:hover {
+                background-color: #777;
+            }
+
+        .field {
+            margin-bottom: 6px;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        .value {
+            color: #eee;
+        }
+    </style>
 </head>
 <body>
-    <h2>Embedded Web Server is Running</h2>
-    <p>If you see this page, your WPF-hosted web service is working.</p>
+    <div class="container">
+        <div class="left-panel">
+            <h2>Part Database</h2>
+            <table id="partsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Width</th>
+                        <th>Depth</th>
+                        <th>Height</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="btn-row">
+                <button onclick="addPart()">Add</button>
+                <button onclick="editPart()">Edit</button>
+                <button onclick="deletePart()">Delete</button>
+                <button onclick="loadParts()">Refresh</button>
+            </div>
+        </div>
+
+        <div class="right-panel" id="detailsPanel">
+            <h2>Part Details</h2>
+            <div id="detailsContainer">
+                <div class="field"><span class="label">Part Number:</span> <span class="value" id="partNumber"></span></div>
+                <div class="field"><span class="label">Description:</span> <span class="value" id="description"></span></div>
+                <div class="field"><span class="label">Stock Width:</span> <span class="value" id="stockWidth"></span></div>
+                <div class="field"><span class="label">Stock Depth:</span> <span class="value" id="stockDepth"></span></div>
+                <div class="field"><span class="label">Stock Height:</span> <span class="value" id="stockHeight"></span></div>
+                <div class="field"><span class="label">Op10 Pick X Offset:</span> <span class="value" id="op10x"></span></div>
+                <div class="field"><span class="label">Op10 Pick Y Offset:</span> <span class="value" id="op10y"></span></div>
+                <div class="field"><span class="label">Op10 Pick Z Offset:</span> <span class="value" id="op10z"></span></div>
+                <div class="field"><span class="label">Op10 Cycle Time:</span> <span class="value" id="op10time"></span></div>
+                <div class="field"><span class="label">Op20 Pick X Offset:</span> <span class="value" id="op20x"></span></div>
+                <div class="field"><span class="label">Op20 Pick Y Offset:</span> <span class="value" id="op20y"></span></div>
+                <div class="field"><span class="label">Op20 Pick Z Offset:</span> <span class="value" id="op20z"></span></div>
+                <div class="field"><span class="label">Op20 Cycle Time:</span> <span class="value" id="op20time"></span></div>
+                <div class="field"><span class="label">Op10 Program Name:</span> <span class="value" id="op10prog"></span></div>
+                <div class="field"><span class="label">Op20 Program Name:</span> <span class="value" id="op20prog"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPart = null;
+
+        async function loadParts() {
+            const resp = await fetch('/api/parts', { credentials: 'include' });
+            if (!resp.ok) {
+                alert('Failed to load parts');
+                return;
+            }
+            const parts = await resp.json();
+            const tbody = document.querySelector('#partsTable tbody');
+            tbody.innerHTML = '';
+
+            for (const p of parts) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${p.Id}</td>
+                    <td>${p.PartNumber}</td>
+                    <td>${p.Description}</td>
+                    <td>${p.StockWidth}</td>
+                    <td>${p.StockDepth}</td>
+                    <td>${p.StockHeight}</td>
+                `;
+                row.onclick = () => selectPart(row, p);
+                tbody.appendChild(row);
+            }
+        }
+
+        function selectPart(row, part) {
+            document.querySelectorAll('#partsTable tr').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            selectedPart = part;
+            updateDetails(part);
+        }
+
+        function updateDetails(p) {
+            document.getElementById('partNumber').textContent = p.PartNumber;
+            document.getElementById('description').textContent = p.Description;
+            document.getElementById('stockWidth').textContent = p.StockWidth;
+            document.getElementById('stockDepth').textContent = p.StockDepth;
+            document.getElementById('stockHeight').textContent = p.StockHeight;
+            document.getElementById('op10x').textContent = p.Op10PickXOffset;
+            document.getElementById('op10y').textContent = p.Op10PickYOffset;
+            document.getElementById('op10z').textContent = p.Op10PickZOffset;
+            document.getElementById('op10time').textContent = p.Op10CycleTime;
+            document.getElementById('op20x').textContent = p.Op20PickXOffset;
+            document.getElementById('op20y').textContent = p.Op20PickYOffset;
+            document.getElementById('op20z').textContent = p.Op20PickZOffset;
+            document.getElementById('op20time').textContent = p.Op20CycleTime;
+            document.getElementById('op10prog').textContent = p.Op10ProgramName;
+            document.getElementById('op20prog').textContent = p.Op20ProgramName;
+        }
+
+        function addPart() {
+            alert('Add Part (coming soon)');
+        }
+
+        function editPart() {
+            if (!selectedPart) {
+                alert('Select a part to edit');
+                return;
+            }
+            alert('Edit Part (coming soon)');
+        }
+
+        function deletePart() {
+            if (!selectedPart) {
+                alert('Select a part to delete');
+                return;
+            }
+            alert('Delete Part (coming soon)');
+        }
+
+        loadParts();
+    </script>
 </body>
 </html>
