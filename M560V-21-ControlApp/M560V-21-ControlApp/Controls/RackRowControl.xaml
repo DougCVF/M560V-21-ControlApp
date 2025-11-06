@@ -1,0 +1,38 @@
+﻿<UserControl x:Class="M560V_21_ControlApp.Controls.RackRowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:M560V_21_ControlApp.Controls">
+
+    <Border Margin="5" BorderThickness="1" BorderBrush="#2F2F2F" CornerRadius="4" Background="#1E1E1E">
+        <StackPanel Margin="6">
+            <DockPanel LastChildFill="True">
+                <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           Foreground="#58A6FF" FontWeight="SemiBold" Margin="0,0,10,0"/>
+
+                <ComboBox x:Name="cmbPartSelect"
+                          Width="160"
+                          Margin="0,0,10,0"
+                          Foreground="Black"
+                          Background="White"
+                          DisplayMemberPath="PartNumber"
+                          SelectionChanged="cmbPartSelect_SelectionChanged"/>
+
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Content="Select All" Width="90" Margin="4,0" Click="SelectAll_Click"/>
+                    <Button Content="Select None" Width="90" Margin="4,0" Click="SelectNone_Click"/>
+                </StackPanel>
+
+                <!-- Stock Info Label -->
+                <TextBlock x:Name="lblStockInfo"
+                           Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="#58A6FF"
+                           FontWeight="SemiBold"
+                           Text="Stock = ---" />
+            </DockPanel>
+
+            <!-- Tray Display -->
+            <controls:TrayRowControl x:Name="TrayRowControl" Margin="0,8,0,0"/>
+        </StackPanel>
+    </Border>
+</UserControl>

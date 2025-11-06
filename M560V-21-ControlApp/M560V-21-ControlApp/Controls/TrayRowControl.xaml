@@ -1,0 +1,13 @@
+﻿<UserControl x:Class="M560V_21_ControlApp.Controls.TrayRowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="150" Background="Transparent">
+
+    <Grid>
+        <!-- Canvas for tray drawing -->
+        <Canvas x:Name="CanvasRoot"
+                Background="#202020"
+                SnapsToDevicePixels="True"
+                ClipToBounds="True" />
+    </Grid>
+</UserControl>
