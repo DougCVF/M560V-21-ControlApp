@@ -1,0 +1,94 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Part Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #222;
+            color: #eee;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+        }
+
+        tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+            .header h2 {
+                margin: 0;
+            }
+
+        button {
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background-color: #777;
+            }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Part Management</h2>
+        <button onclick="loadParts()">Reload</button>
+    </div>
+    <table id="partsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Material</th>
+                <th>Quantity</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function loadParts() {
+            const resp = await fetch('/api/parts', { credentials: 'include' });
+            if (!resp.ok) {
+                alert('Failed to load parts');
+                return;
+            }
+            const parts = await resp.json();
+            const tbody = document.querySelector('#partsTable tbody');
+            tbody.innerHTML = '';
+            for (const p of parts) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${p.Id}</td><td>${p.Name}</td><td>${p.Material}</td><td>${p.Quantity}</td>`;
+                tbody.appendChild(row);
+            }
+        }
+
+        loadParts();
+    </script>
+</body>
+</html>
