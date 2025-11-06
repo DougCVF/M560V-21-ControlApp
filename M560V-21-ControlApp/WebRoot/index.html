@@ -121,23 +121,35 @@
         <div class="right-panel" id="detailsPanel">
             <h2>Part Details</h2>
             <div id="detailsContainer">
-                <div class="field"><span class="label">Part Number:</span> <span class="value" id="partNumber"></span></div>
-                <div class="field"><span class="label">Description:</span> <span class="value" id="description"></span></div>
-                <div class="field"><span class="label">Stock Width:</span> <span class="value" id="stockWidth"></span></div>
-                <div class="field"><span class="label">Stock Depth:</span> <span class="value" id="stockDepth"></span></div>
-                <div class="field"><span class="label">Stock Height:</span> <span class="value" id="stockHeight"></span></div>
-                <div class="field"><span class="label">Op10 Pick X Offset:</span> <span class="value" id="op10x"></span></div>
-                <div class="field"><span class="label">Op10 Pick Y Offset:</span> <span class="value" id="op10y"></span></div>
-                <div class="field"><span class="label">Op10 Pick Z Offset:</span> <span class="value" id="op10z"></span></div>
-                <div class="field"><span class="label">Op10 Cycle Time:</span> <span class="value" id="op10time"></span></div>
-                <div class="field"><span class="label">Op20 Pick X Offset:</span> <span class="value" id="op20x"></span></div>
-                <div class="field"><span class="label">Op20 Pick Y Offset:</span> <span class="value" id="op20y"></span></div>
-                <div class="field"><span class="label">Op20 Pick Z Offset:</span> <span class="value" id="op20z"></span></div>
-                <div class="field"><span class="label">Op20 Cycle Time:</span> <span class="value" id="op20time"></span></div>
-                <div class="field"><span class="label">Op10 Program Name:</span> <span class="value" id="op10prog"></span></div>
-                <div class="field"><span class="label">Op20 Program Name:</span> <span class="value" id="op20prog"></span></div>
+                <div class="field"><span class="label">Part Number:</span> <span class="value" id="PartNumber"></span></div>
+                <div class="field"><span class="label">Description:</span> <span class="value" id="Description"></span></div>
+                <div class="field"><span class="label">Stock Width:</span> <span class="value" id="StockWidth"></span></div>
+                <div class="field"><span class="label">Stock Depth:</span> <span class="value" id="StockDepth"></span></div>
+                <div class="field"><span class="label">Stock Height:</span> <span class="value" id="StockHeight"></span></div>
+
+                <div class="field"><span class="label">Op10 Pick X Offset:</span> <span class="value" id="Op10PickXOffset"></span></div>
+                <div class="field"><span class="label">Op10 Pick Y Offset:</span> <span class="value" id="Op10PickYOffset"></span></div>
+                <div class="field"><span class="label">Op10 Pick Z Offset:</span> <span class="value" id="Op10PickZOffset"></span></div>
+
+                <div class="field"><span class="label">Op20 Pick X Offset:</span> <span class="value" id="Op20PickXOffset"></span></div>
+                <div class="field"><span class="label">Op20 Pick Y Offset:</span> <span class="value" id="Op20PickYOffset"></span></div>
+                <div class="field"><span class="label">Op20 Pick Z Offset:</span> <span class="value" id="Op20PickZOffset"></span></div>
+
+                <div class="field"><span class="label">Op20 Fin X Offset:</span> <span class="value" id="Op20FinXOffset"></span></div>
+                <div class="field"><span class="label">Op20 Fin Y Offset:</span> <span class="value" id="Op20FinYOffset"></span></div>
+                <div class="field"><span class="label">Op20 Fin Z Offset:</span> <span class="value" id="Op20FinZOffset"></span></div>
+
+                <div class="field"><span class="label">Op10 Vise PSI:</span> <span class="value" id="Op10VisePSI"></span></div>
+                <div class="field"><span class="label">Op20 Vise PSI:</span> <span class="value" id="Op20VisePSI"></span></div>
+
+                <div class="field"><span class="label">Op10 Program Name:</span> <span class="value" id="Op10ProgramName"></span></div>
+                <div class="field"><span class="label">Op20 Program Name:</span> <span class="value" id="Op20ProgramName"></span></div>
+
+                <div class="field"><span class="label">Op10 Cycle Time:</span> <span class="value" id="Op10CycleTime"></span></div>
+                <div class="field"><span class="label">Op20 Cycle Time:</span> <span class="value" id="Op20CycleTime"></span></div>
             </div>
         </div>
+
     </div>
 
     <script>
@@ -176,22 +188,40 @@
         }
 
         function updateDetails(p) {
-            document.getElementById('partNumber').textContent = p.PartNumber;
-            document.getElementById('description').textContent = p.Description;
-            document.getElementById('stockWidth').textContent = p.StockWidth;
-            document.getElementById('stockDepth').textContent = p.StockDepth;
-            document.getElementById('stockHeight').textContent = p.StockHeight;
-            document.getElementById('op10x').textContent = p.Op10PickXOffset;
-            document.getElementById('op10y').textContent = p.Op10PickYOffset;
-            document.getElementById('op10z').textContent = p.Op10PickZOffset;
-            document.getElementById('op10time').textContent = p.Op10CycleTime;
-            document.getElementById('op20x').textContent = p.Op20PickXOffset;
-            document.getElementById('op20y').textContent = p.Op20PickYOffset;
-            document.getElementById('op20z').textContent = p.Op20PickZOffset;
-            document.getElementById('op20time').textContent = p.Op20CycleTime;
-            document.getElementById('op10prog').textContent = p.Op10ProgramName;
-            document.getElementById('op20prog').textContent = p.Op20ProgramName;
+            document.getElementById('PartNumber').textContent = p.PartNumber ?? '';
+            document.getElementById('Description').textContent = p.Description ?? '';
+            document.getElementById('StockWidth').textContent = p.StockWidth ?? '';
+            document.getElementById('StockDepth').textContent = p.StockDepth ?? '';
+            document.getElementById('StockHeight').textContent = p.StockHeight ?? '';
+
+            // Op10 Pick Offsets
+            document.getElementById('Op10PickXOffset').textContent = p.Op10PickXOffset ?? '';
+            document.getElementById('Op10PickYOffset').textContent = p.Op10PickYOffset ?? '';
+            document.getElementById('Op10PickZOffset').textContent = p.Op10PickZOffset ?? '';
+
+            // Op20 Pick Offsets
+            document.getElementById('Op20PickXOffset').textContent = p.Op20PickXOffset ?? '';
+            document.getElementById('Op20PickYOffset').textContent = p.Op20PickYOffset ?? '';
+            document.getElementById('Op20PickZOffset').textContent = p.Op20PickZOffset ?? '';
+
+            // Op20 Fin Offsets
+            document.getElementById('Op20FinXOffset').textContent = p.Op20FinXOffset ?? '';
+            document.getElementById('Op20FinYOffset').textContent = p.Op20FinYOffset ?? '';
+            document.getElementById('Op20FinZOffset').textContent = p.Op20FinZOffset ?? '';
+
+            // Vise PSI
+            document.getElementById('Op10VisePSI').textContent = p.Op10VisePSI ?? '';
+            document.getElementById('Op20VisePSI').textContent = p.Op20VisePSI ?? '';
+
+            // Program Names
+            document.getElementById('Op10ProgramName').textContent = p.Op10ProgramName ?? '';
+            document.getElementById('Op20ProgramName').textContent = p.Op20ProgramName ?? '';
+
+            // Cycle Times
+            document.getElementById('Op10CycleTime').textContent = p.Op10CycleTime ?? '';
+            document.getElementById('Op20CycleTime').textContent = p.Op20CycleTime ?? '';
         }
+
 
         function addPart() {
             alert('Add Part (coming soon)');

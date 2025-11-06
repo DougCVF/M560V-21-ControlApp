@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Configuration;
-using System.Collections.Generic;
 
 namespace M560V_21_ControlApp.Services.WebServer
 {
@@ -27,13 +28,13 @@ namespace M560V_21_ControlApp.Services.WebServer
             _listener = new HttpListener();
             _rootPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WebRoot");
 
-            // Load password from App.config (key: WebPassword)
+            // Password from App.config: <appSettings><add key="WebPassword" value="YourPass"/></appSettings>
             _password = ConfigurationManager.AppSettings["WebPassword"] ?? "admin";
 
             LocalIP = GetLocalIPAddress();
 
-            // Use wildcard '+' so it matches URL ACL registration
-            _listener.Prefixes.Add($"http://+:{Port}/");
+            // Use wildcard so it matches netsh URL ACL (http add urlacl url=http://+:8080/ user=Everyone)
+            _listener.Prefixes.Add("http://+:" + Port + "/");
         }
 
         public void Start()
@@ -42,10 +43,11 @@ namespace M560V_21_ControlApp.Services.WebServer
 
             _isRunning = true;
             _listener.Start();
+
             _serverThread = new Thread(ListenLoop) { IsBackground = true };
             _serverThread.Start();
 
-            Console.WriteLine($"[WebServer] Running at http://{LocalIP}:{Port}/");
+            Console.WriteLine("[WebServer] Running at http://" + LocalIP + ":" + Port + "/");
         }
 
         public void Stop()
@@ -75,7 +77,7 @@ namespace M560V_21_ControlApp.Services.WebServer
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[WebServer] Error: {ex.Message}");
+                    Console.WriteLine("[WebServer] Loop error: " + ex.Message);
                 }
             }
         }
@@ -85,12 +87,14 @@ namespace M560V_21_ControlApp.Services.WebServer
             try
             {
                 string path = context.Request.Url.AbsolutePath.TrimStart('/');
-                string remoteIP = context.Request.RemoteEndPoint?.Address.ToString() ?? "unknown";
-                Console.WriteLine($"[WebServer] {remoteIP} -> {path}");
+                string remoteIP = context.Request.RemoteEndPoint != null
+                    ? context.Request.RemoteEndPoint.Address.ToString()
+                    : "unknown";
 
-                // Authentication check first
-                if (!Authenticate(context))
-                    return;
+                Console.WriteLine("[WebServer] " + remoteIP + " -> " + path);
+
+                // Auth first
+                if (!Authenticate(context)) return;
 
                 // --- API routes ---
                 if (path.Equals("api/test", StringComparison.OrdinalIgnoreCase))
@@ -98,7 +102,6 @@ namespace M560V_21_ControlApp.Services.WebServer
                     HandleApiTest(context);
                     return;
                 }
-
                 if (path.Equals("api/parts", StringComparison.OrdinalIgnoreCase))
                 {
                     HandleApiParts(context);
@@ -106,19 +109,16 @@ namespace M560V_21_ControlApp.Services.WebServer
                 }
                 // ------------------
 
-                // --- Friendly redirect ---
+                // Friendly route: /parts -> /parts.html
                 if (path.Equals("parts", StringComparison.OrdinalIgnoreCase))
                 {
                     path = "parts.html";
                 }
-                // --------------------------
 
-                // Default file serving
-                if (string.IsNullOrEmpty(path))
-                    path = "index.html";
+                // Static files
+                if (string.IsNullOrEmpty(path)) path = "index.html";
 
                 string filePath = Path.Combine(_rootPath, path);
-
                 if (File.Exists(filePath))
                 {
                     byte[] buffer = File.ReadAllBytes(filePath);
@@ -134,7 +134,7 @@ namespace M560V_21_ControlApp.Services.WebServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WebServer] Exception: {ex.Message}");
+                Console.WriteLine("[WebServer] Handle error: " + ex.Message);
                 try
                 {
                     context.Response.StatusCode = 500;
@@ -153,8 +153,7 @@ namespace M560V_21_ControlApp.Services.WebServer
             try
             {
                 string auth = context.Request.Headers["Authorization"];
-
-                if (auth == null || !auth.StartsWith("Basic "))
+                if (auth == null || !auth.StartsWith("Basic ", StringComparison.Ordinal))
                 {
                     context.Response.AddHeader("WWW-Authenticate", "Basic realm=\"M560V21\"");
                     context.Response.StatusCode = 401;
@@ -164,10 +163,9 @@ namespace M560V_21_ControlApp.Services.WebServer
                 }
 
                 string encoded = auth.Substring("Basic ".Length).Trim();
-                string decoded = Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
-
-                // Format: user:password
+                string decoded = Encoding.UTF8.GetString(Convert.FromBase64String(encoded)); // "user:pass"
                 string[] parts = decoded.Split(':');
+
                 if (parts.Length == 2 && parts[1] == _password)
                     return true;
 
@@ -178,7 +176,7 @@ namespace M560V_21_ControlApp.Services.WebServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WebServer] Auth error: {ex.Message}");
+                Console.WriteLine("[WebServer] Auth error: " + ex.Message);
                 try
                 {
                     context.Response.StatusCode = 500;
@@ -193,8 +191,8 @@ namespace M560V_21_ControlApp.Services.WebServer
         {
             try
             {
-                var json = "{ \"status\": \"ok\", \"message\": \"Web API is running\", \"time\": \"" +
-                           DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\" }";
+                string json = "{ \"status\":\"ok\",\"message\":\"Web API is running\",\"time\":\"" +
+                              DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\" }";
 
                 byte[] buffer = Encoding.UTF8.GetBytes(json);
                 context.Response.ContentType = "application/json";
@@ -203,115 +201,132 @@ namespace M560V_21_ControlApp.Services.WebServer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WebServer] /api/test error: {ex.Message}");
+                Console.WriteLine("[WebServer] /api/test error: " + ex.Message);
                 context.Response.StatusCode = 500;
                 WriteString(context, "{ \"error\": \"Internal Server Error\" }");
             }
         }
 
-        using System.Collections.Generic; // make sure this is at the top with other usings
-
-private void HandleApiParts(HttpListenerContext context)
-    {
-        try
+        // Pulls Parts from your Repository and returns JSON with fields in the same order the WPF panel shows.
+        private void HandleApiParts(HttpListenerContext context)
         {
-            List<M560V_21_ControlApp.Models.Part> parts;
-
             try
             {
-                parts = M560V_21_ControlApp.Data.Repository.GetAllParts();
+                // Get real data
+                List<M560V_21_ControlApp.Models.Part> parts;
+                try
+                {
+                    parts = M560V_21_ControlApp.Data.Repository.GetAllParts();
+                }
+                catch (Exception exRepo)
+                {
+                    Console.WriteLine("[WebServer] DB error: " + exRepo.Message);
+                    context.Response.StatusCode = 500;
+                    WriteString(context, "{ \"error\": \"Database access failed\" }");
+                    return;
+                }
+
+                // Build JSON (manual to avoid extra deps; C# 7.3-safe)
+                var sb = new StringBuilder();
+                sb.Append("[");
+
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    var p = parts[i];
+
+                    // Use reflection for optional Fin offsets (safe if model doesn't have them yet)
+                    double op20fx = GetPropDouble(p, "Op20FinXOffset");
+                    double op20fy = GetPropDouble(p, "Op20FinYOffset");
+                    double op20fz = GetPropDouble(p, "Op20FinZOffset");
+
+                    sb.Append("{")
+                      // Order matches the Part Management right-panel you shared
+                      .AppendFormat("\"Id\":{0}", p.Id)
+                      .AppendFormat(",\"PartNumber\":\"{0}\"", EscapeJson(p.PartNumber))
+                      .AppendFormat(",\"Description\":\"{0}\"", EscapeJson(p.Description))
+                      .AppendFormat(",\"StockWidth\":{0}", p.StockWidth)
+                      .AppendFormat(",\"StockDepth\":{0}", p.StockDepth)
+                      .AppendFormat(",\"StockHeight\":{0}", p.StockHeight)
+
+                      // Op10 pick
+                      .AppendFormat(",\"Op10PickXOffset\":{0}", p.Op10PickXOffset)
+                      .AppendFormat(",\"Op10PickYOffset\":{0}", p.Op10PickYOffset)
+                      .AppendFormat(",\"Op10PickZOffset\":{0}", p.Op10PickZOffset)
+
+                      // Op20 pick
+                      .AppendFormat(",\"Op20PickXOffset\":{0}", p.Op20PickXOffset)
+                      .AppendFormat(",\"Op20PickYOffset\":{0}", p.Op20PickYOffset)
+                      .AppendFormat(",\"Op20PickZOffset\":{0}", p.Op20PickZOffset)
+
+                      // Op20 fin (optional)
+                      .AppendFormat(",\"Op20FinXOffset\":{0}", op20fx)
+                      .AppendFormat(",\"Op20FinYOffset\":{0}", op20fy)
+                      .AppendFormat(",\"Op20FinZOffset\":{0}", op20fz)
+
+                      // PSI
+                      .AppendFormat(",\"Op10VisePSI\":{0}", p.Op10VisePSI)
+                      .AppendFormat(",\"Op20VisePSI\":{0}", p.Op20VisePSI)
+
+                      // Programs
+                      .AppendFormat(",\"Op10ProgramName\":\"{0}\"", EscapeJson(p.Op10ProgramName))
+                      .AppendFormat(",\"Op20ProgramName\":\"{0}\"", EscapeJson(p.Op20ProgramName))
+
+                      // Cycle times
+                      .AppendFormat(",\"Op10CycleTime\":{0}", p.Op10CycleTime)
+                      .AppendFormat(",\"Op20CycleTime\":{0}", p.Op20CycleTime)
+                      .Append("}");
+
+                    if (i < parts.Count - 1) sb.Append(",");
+                }
+
+                sb.Append("]");
+
+                byte[] buffer = Encoding.UTF8.GetBytes(sb.ToString());
+                context.Response.ContentType = "application/json";
+                context.Response.ContentLength64 = buffer.Length;
+                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
             }
-            catch (Exception exRepo)
+            catch (Exception ex)
             {
-                Console.WriteLine($"[WebServer] Database access error: {exRepo.Message}");
+                Console.WriteLine("[WebServer] /api/parts error: " + ex.Message);
                 context.Response.StatusCode = 500;
-                WriteString(context, "{ \"error\": \"Database access failed\" }");
-                return;
+                WriteString(context, "{ \"error\": \"Internal Server Error\" }");
             }
-
-            var sb = new StringBuilder();
-            sb.Append("[");
-
-            for (int i = 0; i < parts.Count; i++)
-            {
-                var p = parts[i];
-
-                // Build JSON manually to stay compatible with older C# versions
-                sb.Append("{")
-                  .AppendFormat("\"Id\":{0}", p.Id)
-                  .AppendFormat(",\"PartNumber\":\"{0}\"", EscapeJson(p.PartNumber))
-                  .AppendFormat(",\"Description\":\"{0}\"", EscapeJson(p.Description))
-                  .AppendFormat(",\"StockWidth\":{0}", p.StockWidth)
-                  .AppendFormat(",\"StockDepth\":{0}", p.StockDepth)
-                  .AppendFormat(",\"StockHeight\":{0}", p.StockHeight)
-
-                  // Op10 Pick Offsets
-                  .AppendFormat(",\"Op10PickXOffset\":{0}", p.Op10PickXOffset)
-                  .AppendFormat(",\"Op10PickYOffset\":{0}", p.Op10PickYOffset)
-                  .AppendFormat(",\"Op10PickZOffset\":{0}", p.Op10PickZOffset)
-
-                  // Op20 Pick Offsets
-                  .AppendFormat(",\"Op20PickXOffset\":{0}", p.Op20PickXOffset)
-                  .AppendFormat(",\"Op20PickYOffset\":{0}", p.Op20PickYOffset)
-                  .AppendFormat(",\"Op20PickZOffset\":{0}", p.Op20PickZOffset)
-
-                  // Op20 Fin Offsets (optional)
-                  .AppendFormat(",\"Op20FinXOffset\":{0}", p.Op20FinXOffset)
-                  .AppendFormat(",\"Op20FinYOffset\":{0}", p.Op20FinYOffset)
-                  .AppendFormat(",\"Op20FinZOffset\":{0}", p.Op20FinZOffset)
-
-                  // Vise PSI values
-                  .AppendFormat(",\"Op10VisePSI\":{0}", p.Op10VisePSI)
-                  .AppendFormat(",\"Op20VisePSI\":{0}", p.Op20VisePSI)
-
-                  // Program names
-                  .AppendFormat(",\"Op10ProgramName\":\"{0}\"", EscapeJson(p.Op10ProgramName))
-                  .AppendFormat(",\"Op20ProgramName\":\"{0}\"", EscapeJson(p.Op20ProgramName))
-
-                  // Cycle times
-                  .AppendFormat(",\"Op10CycleTime\":{0}", p.Op10CycleTime)
-                  .AppendFormat(",\"Op20CycleTime\":{0}", p.Op20CycleTime)
-                  .Append("}");
-
-                if (i < parts.Count - 1)
-                    sb.Append(",");
-            }
-
-            sb.Append("]");
-
-            byte[] buffer = Encoding.UTF8.GetBytes(sb.ToString());
-            context.Response.ContentType = "application/json";
-            context.Response.ContentLength64 = buffer.Length;
-            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[WebServer] /api/parts error: {ex.Message}");
-            context.Response.StatusCode = 500;
-            WriteString(context, "{ \"error\": \"Internal Server Error\" }");
-        }
-    }
 
+        // ---------- helpers ----------
 
-    private string EscapeJson(string value)
+        private static string EscapeJson(string value)
         {
             if (string.IsNullOrEmpty(value)) return "";
-            return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "");
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "")
+                .Replace("\n", "");
         }
 
+        private static double GetPropDouble(object obj, string propName)
+        {
+            try
+            {
+                var prop = obj.GetType().GetProperty(propName);
+                if (prop == null) return 0.0;
+                object val = prop.GetValue(obj, null);
+                if (val == null) return 0.0;
+                return Convert.ToDouble(val);
+            }
+            catch { return 0.0; }
+        }
 
         private void WriteString(HttpListenerContext ctx, string text)
         {
             byte[] data = Encoding.UTF8.GetBytes(text);
             ctx.Response.ContentType = "text/html";
-            try
-            {
-                ctx.Response.OutputStream.Write(data, 0, data.Length);
-            }
-            catch { /* ignore if already closed */ }
+            try { ctx.Response.OutputStream.Write(data, 0, data.Length); } catch { }
         }
 
-        private string GetContentType(string file)
+        private static string GetContentType(string file)
         {
             string ext = Path.GetExtension(file).ToLower();
             if (ext == ".html") return "text/html";
@@ -323,11 +338,19 @@ private void HandleApiParts(HttpListenerContext context)
             return "text/plain";
         }
 
-        private string GetLocalIPAddress()
+        private static string GetLocalIPAddress()
         {
-            var host = Dns.GetHostEntry(Dns.GetHostName());
-            var ip = host.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-            return ip != null ? ip.ToString() : "127.0.0.1";
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                var ip = host.AddressList.FirstOrDefault(
+                    a => a.AddressFamily == AddressFamily.InterNetwork);
+                return ip != null ? ip.ToString() : "127.0.0.1";
+            }
+            catch
+            {
+                return "127.0.0.1";
+            }
         }
     }
 }

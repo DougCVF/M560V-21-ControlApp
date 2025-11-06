@@ -14,57 +14,54 @@ namespace M560V_21_ControlApp.Data
         {
             var parts = new List<Part>();
 
-            try
+            using (var conn = DatabaseHelper.GetConnection())
             {
-                using (var conn = DatabaseHelper.GetConnection())
+                conn.Open();
+                const string query = "SELECT * FROM Parts ORDER BY PartNumber";
+                using (var cmd = new SQLiteCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    const string query = "SELECT * FROM Parts ORDER BY PartNumber";
-
-                    using (var cmd = new SQLiteCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        var part = new Part
                         {
-                            var part = new Part
-                            {
-                                Id = Convert.ToInt32(reader["Id"]),
-                                PartNumber = reader["PartNumber"].ToString(),
-                                Description = reader["Description"].ToString(),
-                                StockWidth = Convert.ToDouble(reader["StockWidth"]),
-                                StockDepth = Convert.ToDouble(reader["StockDepth"]),
-                                StockHeight = Convert.ToDouble(reader["StockHeight"]),
-                                Op10PickXOffset = Convert.ToDouble(reader["Op10PickXOffset"]),
-                                Op10PickYOffset = Convert.ToDouble(reader["Op10PickYOffset"]),
-                                Op10PickZOffset = Convert.ToDouble(reader["Op10PickZOffset"]),
-                                Op10CycleTime = Convert.ToDouble(reader["Op10CycleTime"]),
-                                Op20PickXOffset = Convert.ToDouble(reader["Op20PickXOffset"]),
-                                Op20PickYOffset = Convert.ToDouble(reader["Op20PickYOffset"]),
-                                Op20PickZOffset = Convert.ToDouble(reader["Op20PickZOffset"]),
-                                Op20FinXOffset = Convert.ToDouble(reader["Op20FinXOffset"]),
-                                Op20FinYOffset = Convert.ToDouble(reader["Op20FinYOffset"]),
-                                Op20FinZOffset = Convert.ToDouble(reader["Op20FinZOffset"]),
-                                Op20CycleTime = Convert.ToDouble(reader["Op20CycleTime"]),
-                                Op10VisePSI = Convert.ToDouble(reader["Op10VisePSI"]),
-                                Op20VisePSI = Convert.ToDouble(reader["Op20VisePSI"]),
-                                Op10ProgramName = reader["Op10ProgramName"].ToString(),
-                                Op20ProgramName = reader["Op20ProgramName"].ToString()
-                            };
+                            Id = Convert.ToInt32(reader["Id"]),
+                            PartNumber = reader["PartNumber"].ToString(),
+                            Description = reader["Description"].ToString(),
+                            StockWidth = Convert.ToDouble(reader["StockWidth"]),
+                            StockDepth = Convert.ToDouble(reader["StockDepth"]),
+                            StockHeight = Convert.ToDouble(reader["StockHeight"]),
 
-                            parts.Add(part);
-                        }
+                            Op10PickXOffset = Convert.ToDouble(reader["Op10PickXOffset"]),
+                            Op10PickYOffset = Convert.ToDouble(reader["Op10PickYOffset"]),
+                            Op10PickZOffset = Convert.ToDouble(reader["Op10PickZOffset"]),
+
+                            Op20PickXOffset = Convert.ToDouble(reader["Op20PickXOffset"]),
+                            Op20PickYOffset = Convert.ToDouble(reader["Op20PickYOffset"]),
+                            Op20PickZOffset = Convert.ToDouble(reader["Op20PickZOffset"]),
+
+                            Op20FinXOffset = Convert.ToDouble(reader["Op20FinXOffset"]),
+                            Op20FinYOffset = Convert.ToDouble(reader["Op20FinYOffset"]),
+                            Op20FinZOffset = Convert.ToDouble(reader["Op20FinZOffset"]),
+
+                            Op10VisePSI = Convert.ToDouble(reader["Op10VisePSI"]),
+                            Op20VisePSI = Convert.ToDouble(reader["Op20VisePSI"]),
+
+                            Op10ProgramName = reader["Op10ProgramName"].ToString(),
+                            Op20ProgramName = reader["Op20ProgramName"].ToString(),
+
+                            Op10CycleTime = Convert.ToDouble(reader["Op10CycleTime"]),
+                            Op20CycleTime = Convert.ToDouble(reader["Op20CycleTime"])
+                        };
+                        parts.Add(part);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show("Error loading parts: " + ex.Message,
-                    "Database Error", System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
             }
 
             return parts;
         }
+
+
 
         // -----------------------------
         //  Insert Part
